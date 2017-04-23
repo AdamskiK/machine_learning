@@ -38,26 +38,54 @@ class ReturnDiscreteValues():
 ### opis klasy ###
 # klasa za pomocą której możemy wyciągnąć z kolumny "browser_string" nazwę systemu operacyjnego
 # jeżeli komórka zawiera zmienną typu string to szukamy przy pomocy Regular Expression nazwy systemu i zwracamy tę nazwę
-# jeżeli inny typ niż string wtedy zwracamy wartość 0
-
-class ExtractName():
+# jeżeli inny typ niż string wtedy zwracamy wartość 0 
+        
+class ExtractOsName():
     def __init__(self):
         self.tab = []
-    def fit(self, dataset, col1, col_name):
+    def fit(self, dataset, col, col_name):
         self.dataset = dataset
-        self.col1 = col1
+        self.col = col
         self.col_name = col_name
         return self
     def transform(self, dataset):
         import re
         for i in range(len(self.dataset)):
-            if type(self.dataset.loc[i,self.col1]) == str:
-                if type(re.search('(?<=[ (])\w+', self.dataset.loc[i,self.col1]).group(0)) == str:
-                    self.tab.append(re.search('(?<=[ (])\w+', self.dataset.loc[i,self.col1]).group(0))
+            if type(self.dataset.loc[i,self.col]) == str:
+                if type(re.search('(?<=[ (])\w+', self.dataset.loc[i,self.col]).group(0)) == str:
+                    self.tab.append(re.search('(?<=[ (])\w+', self.dataset.loc[i,self.col]).group(0))
                 else:
                     self.tab.append(0)
             else:
                 self.tab.append(0)    
+        tempDF = pd.DataFrame(self.tab)
+        tempDF.columns = [self.col_name]
+        frames = [dataset, tempDF]
+        return pd.concat(frames, axis = 1)
+
+### opis klasy ###        
+# klasa służy do wyciągania nazwy przeglądarki
+# zastosowanie dla kolumny 'x87611'       
+        
+class ExtractBrowserName(): 
+    def __init__(self):
+        self.tab = []
+    def fit(self, dataset, col, col_name):
+        self.dataset = dataset
+        self.col = col
+        self.col_name = col_name
+    def transform(self, dataset):
+        import re
+        import math
+        for i in range(len(self.dataset)):
+            if type(self.dataset.loc[i,self.col]) == str:
+                var = re.search('(?<=)\w+',self.dataset.loc[i,self.col]).group(0).lower()
+                if var == 'mobile':
+                    self.tab.append('safari')
+                else:
+                    self.tab.append(var)
+            else:
+                self.tab.append(float('nan'))
         tempDF = pd.DataFrame(self.tab)
         tempDF.columns = [self.col_name]
         frames = [dataset, tempDF]
@@ -67,9 +95,11 @@ class ExtractName():
 # Pipeline
 dataset = pd.read_csv('homework_data.csv')
 instance1 = ReturnDiscreteValues()
-instance2 = ExtractName()
+instance2 = ExtractOSName()
+instance3 = ExtractBrowserName()
 instance1.fit(dataset,'input_ip_geo','country_code','cc_bin_number_geo','country_compatibility')
-instance2.fit(dataset,'browser_string','extracted_browser_string')
+instance2.fit(dataset,'browser_string','extracted_windows_string')
+instance3.fit(dataset,'x87611','extracted_browser_string')
 from sklearn.pipeline import Pipeline
-pipeline = Pipeline([("addCol", instance1),("exBrStr", instance2)])
-dataset = pipeline.transform(dataset)
+pipeline = Pipeline([("addCol", instance1),("exOsStr", instance2),("exBrStr", instance3)])
+dataset = pipeline.transform(dataset)       
