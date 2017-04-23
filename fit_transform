@@ -1,7 +1,7 @@
 class ReturnDiscreteValues():
     def __init__(self):
         self.tab = []
-    def fit(self, dataset, col1, col2, col3,  ncol_name):
+    def fit(self, dataset, col1, col2, col3,  col_name):
         self.dataset = dataset
         self.col1 = col1
         self.col2 = col2
@@ -19,7 +19,7 @@ class ReturnDiscreteValues():
             else:
                 self.tab.append(2)
         tempDF = pd.DataFrame(self.tab)
-        tempDF.columns = [self.ncol_name]
+        tempDF.columns = [self.col_name]
         frames = [data, tempDF]
         return pd.concat(frames, axis = 1)
         
