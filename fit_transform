@@ -1,0 +1,34 @@
+class returnDiscreteValues():
+    def __init__(self):
+        self.tab = []
+    def fit(self, dataset, col1, col2, col3,  ncol_name):
+        self.dataset = dataset
+        self.col1 = col1
+        self.col2 = col2
+        self.col3 = col3
+        self.ncol_name = ncol_name
+        return self
+    def transform(self, data):
+        import pandas as pd
+        for i in range(len(self.dataset)):
+            if type(self.dataset.loc[i,self.col1]) == str and type(self.dataset.loc[i,self.col2]) == str and type(self.dataset.loc[i,self.col3]) == str:
+                if self.dataset.loc[i, self.col1] == self.dataset.loc[i, self.col2] and self.dataset.loc[i, self.col1] == self.dataset.loc[i, self.col3]:
+                    self.tab.append(1)
+                else:
+                    self.tab.append(0)
+            else:
+                self.tab.append(2)
+        tempDF = pd.DataFrame(self.tab)
+        tempDF.columns = [self.ncol_name]
+        frames = [data, tempDF]
+        return pd.concat(frames, axis = 1)
+        
+        
+# Wczytanie danych        
+dataset = pd.read_csv('homework_data.csv')
+
+instance = returnDiscreteValues()
+instance.fit(dataset,'input_ip_geo','country_code','cc_bin_number_geo','country_compatibility')
+from sklearn.pipeline import Pipeline
+pipeline = Pipeline([("addCol", instance)])
+dataset = pipeline.transform(dataset)
