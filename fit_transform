@@ -1,4 +1,4 @@
-class returnDiscreteValues():
+class ReturnDiscreteValues():
     def __init__(self):
         self.tab = []
     def fit(self, dataset, col1, col2, col3,  ncol_name):
@@ -27,7 +27,7 @@ class returnDiscreteValues():
 # Wczytanie danych        
 dataset = pd.read_csv('homework_data.csv')
 
-instance = returnDiscreteValues()
+instance = ReturnDiscreteValues()
 instance.fit(dataset,'input_ip_geo','country_code','cc_bin_number_geo','country_compatibility')
 from sklearn.pipeline import Pipeline
 pipeline = Pipeline([("addCol", instance)])
