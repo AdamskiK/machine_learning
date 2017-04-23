@@ -1,7 +1,19 @@
+###PRACA DOMOWA NR 2###
+### opis klasy ###
+# dataset - dataset jako DataFrame
+# col 1 - nazwa kolumny nr 1 - string
+# col 2 - nazwa kolumny nr 2 - string
+# col 3 - nazwa kolumny nr 3 - string
+# col_name - nazwa nowej kolumny zwracanej przy uzyciu metody returnDF
+### opis zwracanych wartości ###
+# 0 - False(gdy różne wartości w kolumnach)
+# 1 - True(gdy takie same wartości w kolumnach
+# 2 - gdy występują wartości NaN
+
 class ReturnDiscreteValues():
     def __init__(self):
         self.tab = []
-    def fit(self, dataset, col1, col2, col3,  col_name):
+    def fit(self, dataset, col1, col2, col3,  ncol_name):
         self.dataset = dataset
         self.col1 = col1
         self.col2 = col2
@@ -19,16 +31,45 @@ class ReturnDiscreteValues():
             else:
                 self.tab.append(2)
         tempDF = pd.DataFrame(self.tab)
-        tempDF.columns = [self.col_name]
+        tempDF.columns = [self.ncol_name]
         frames = [data, tempDF]
+        return pd.concat(frames, axis = 1)
+
+### opis klasy ###
+# klasa za pomocą której możemy wyciągnąć z kolumny "browser_string" nazwę systemu operacyjnego
+# jeżeli komórka zawiera zmienną typu string to szukamy przy pomocy Regular Expression nazwy systemu i zwracamy tę nazwę
+# jeżeli inny typ niż string wtedy zwracamy wartość 0
+
+class ExtractName():
+    def __init__(self):
+        self.tab = []
+    def fit(self, dataset, col1, col_name):
+        self.dataset = dataset
+        self.col1 = col1
+        self.col_name = col_name
+        return self
+    def transform(self, dataset):
+        import re
+        for i in range(len(self.dataset)):
+            if type(self.dataset.loc[i,self.col1]) == str:
+                if type(re.search('(?<=[ (])\w+', self.dataset.loc[i,self.col1]).group(0)) == str:
+                    self.tab.append(re.search('(?<=[ (])\w+', self.dataset.loc[i,self.col1]).group(0))
+                else:
+                    self.tab.append(0)
+            else:
+                self.tab.append(0)    
+        tempDF = pd.DataFrame(self.tab)
+        tempDF.columns = [self.col_name]
+        frames = [dataset, tempDF]
         return pd.concat(frames, axis = 1)
         
         
-# Wczytanie danych        
+# Pipeline
 dataset = pd.read_csv('homework_data.csv')
-
-instance = ReturnDiscreteValues()
-instance.fit(dataset,'input_ip_geo','country_code','cc_bin_number_geo','country_compatibility')
+instance1 = ReturnDiscreteValues()
+instance2 = ExtractName()
+instance1.fit(dataset,'input_ip_geo','country_code','cc_bin_number_geo','country_compatibility')
+instance2.fit(dataset,'browser_string','extracted_browser_string')
 from sklearn.pipeline import Pipeline
-pipeline = Pipeline([("addCol", instance)])
+pipeline = Pipeline([("addCol", instance1),("exBrStr", instance2)])
 dataset = pipeline.transform(dataset)
