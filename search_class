@@ -1,0 +1,244 @@
+from sklearn.model_selection import cross_val_score
+import itertools as it
+import random
+
+def random_search(
+        X_train, y_train, model_class, param_grid, loss, kfolds, sampsize=None):
+    """
+    Random search over the grid defined by `param_grid`.
+    Parameters
+    ----------
+    X_train : np.array
+        The design matrix, dimension `(n_samples, n_features)`.
+    y_train : list or np.array
+        The target, of dimension `n_samples`.
+    model_class : classifier
+        A classifier model in the mode of `sklearn`, with at least
+        `fit` and `predict` methods operating on things like
+        `X` and `y`.
+    param_grid : dict
+        Map from parameter names to lists of appropriate values
+        for that parameter. This is not the expanded grid, but
+        rather the simple map that can be expanded by `expand_grid`
+        below. This method performs the expansion.
+    loss : function or string
+        An appropriate loss function or string recognizable by
+        sklearn.cross_validation.cross_val_score. In sklearn, scores
+        are positive and losses are negative because they maximize,
+        but here we are minimizing so we always want smaller to mean
+        better.
+    sampsize : int or None
+        Number of samples to take from the grid. If `None`, then
+        `sampsize` is half the size of the full grid.
+    Returns
+    -------
+    list of dict
+        Each has keys 'loss' and 'params', where 'params' stores the
+        values from `param_grid` for that run. The primary organizing
+        value is 'loss'.
+    Example
+    -------
+    >>> param_grid = {
+            'max_depth' : [4, 8],
+            'learning_rate' : [0.01, 0.3],
+            'n_estimators' : [20, 50],
+            'objective' : ['multi:softprob'],
+            'gamma' : [0, 0.25],
+            'min_child_weight' : [1],
+            'subsample' : [1],
+            'colsample_bytree' : [1]}
+    >>> res = random_search(X, y, XGBClassifier, param_grid, LOG_LOSS)
+    To be followed by (see below):
+    >>> best_params, best_loss = best_results(res)
+    """
+    exapnded_param_grid = expand_grid(param_grid)
+    if sampsize == None:
+        sampsize = int(len(exapnded_param_grid) / 2.0)
+    samp = random.sample(exapnded_param_grid, sampsize)
+    results = []
+    for params in samp:
+        err = cross_validated_scorer(
+            X_train, y_train, model_class, params, loss, kfolds)
+        results.append({'loss': err, 'params': params})
+    return results
+
+
+def grid_search(X_train, y_train, model_class, param_grid, loss, sampsize=1000000):
+    """
+    Full grid search over the grid defined by `param_grid`.
+    Parameters
+    ----------
+    X_train : np.array
+        The design matrix, dimension `(n_samples, n_features)`.
+    y_train : list or np.array
+        The target, of dimension `n_samples`.
+    model_class : classifier
+        A classifier model in the mode of `sklearn`, with at least
+        `fit` and `predict` methods operating on things like
+        `X` and `y`.
+    param_grid : dict
+        Map from parameter names to lists of appropriate values
+        for that parameter. This is not the expanded grid, but
+        rather the simple map that can be expanded by `expand_grid`
+        below. This method performs the expansion.
+    loss : function or string
+        An appropriate loss function or string recognizable by
+        sklearn.cross_validation.cross_val_score. In sklearn, scores
+        are positive and losses are negative because they maximize,
+        but here we are minimizing so we always want smaller to mean
+        better.
+    Returns
+    -------
+    list of dict
+        Each has keys 'loss' and 'params', where 'params' stores the
+        values from `param_grid` for that run. The primary organizing
+        value is 'loss'.
+    Example
+    -------
+    >>> param_grid = {
+            'max_depth' : [4, 8],
+            'learning_rate' : [0.01, 0.3],
+            'n_estimators' : [20, 50],
+            'objective' : ['multi:softprob'],
+            'gamma' : [0, 0.25],
+            'min_child_weight' : [1],
+            'subsample' : [1],
+            'colsample_bytree' : [1]}
+    >>> res = grid_search(X, y, XGBClassifier, param_grid, LOG_LOSS)
+    To be followed by (see below):
+    >>> best_params, best_loss = best_results(res)
+    """
+    results = []
+    expanded_param_grid = expand_grid(param_grid)
+    print("Number of iterations: ", len(expanded_param_grid))
+    counter = 0
+    for params in expanded_param_grid:
+        err = cross_validated_scorer(
+            X_train, y_train, model_class, params, loss)
+        results.append({'loss': err, 'params': params})
+        counter += 1
+        if counter > sampsize:
+            break
+    return results   
+
+def expand_grid(param_grid):
+    """
+    Expand `param_grid` to the full grid, as a list of dicts.
+    Parameters
+    ----------
+    param_grid : dict
+        Map from parameter names to lists of appropriate values
+        for that parameter. This is not the expanded grid, but
+        rather the simple map that can be expanded by `expand_grid`
+        below. This method performs the expansion.
+    Returns
+    -------
+    list of dict
+        If `param_grid` was
+        {'foo': [1,2], 'bar': [3,4]}
+        Then the return value would be
+        [{'foo': 1, 'bar': 3},  {'foo': 1, 'bar': 4},
+         {'foo': 2, 'bar': 3},  {'foo': 2, 'bar': 4}]
+    """        
+    varNames = sorted(param_grid)
+    return [dict(zip(varNames, prod))
+            for prod in it.product(*(param_grid[varName]
+                                     for varName in varNames))]
+
+
+def cross_validated_scorer(
+        X_train, y_train, model_class, params, loss, kfolds = 5):
+    """
+    The scoring function used through this module, by all search
+    functions.
+    Parameters
+    ----------
+    X_train : np.array
+        The design matrix, dimension `(n_samples, n_features)`.
+    y_train : list or np.array
+        The target, of dimension `n_samples`.
+    model_class : classifier
+        A classifier model in the mode of `sklearn`, with at least
+        `fit` and `predict` methods operating on things like
+        `X` and `y`.
+    params : dict
+        Map from parameter names to single appropriate values
+        for that parameter. This will be used to build a model
+        from `model_class`.
+    loss : function or string
+        An appropriate loss function or string recognizable by
+        sklearn.cross_validation.cross_val_score. In sklearn, scores
+        are positive and losses are negative because they maximize,
+        but here we are minimizing so we always want smaller to mean
+        better.
+    kfolds : int
+        Number of cross-validation runs to do.
+    Returns
+    -------
+    float
+       Average loss over the `kfolds` runs.
+    """
+    print('*', end=' ')
+    mod = model_class(**params)
+    cv_score = 1 * cross_val_score(
+        mod,
+        X_train,
+
+        y=y_train,
+        scoring=loss,
+        cv=kfolds,
+        n_jobs=1).mean()
+    return cv_score
+
+
+def skopt_search(
+        X_train, y_train, model_class, param_grid, loss, skopt_method, n_calls=100):
+    """
+    General method for applying `skopt_method` to the data.
+    Parameters
+    ----------
+    X_train : np.array
+        The design matrix, dimension `(n_samples, n_features)`.
+    y_train : list or np.array
+        The target, of dimension `n_samples`.
+    model_class : classifier
+        A classifier model in the mode of `sklearn`, with at least
+        `fit` and `predict` methods operating on things like
+        `X` and `y`.
+    param_grid : dict
+        Map from parameter names to pairs of values specifying the
+        upper and lower ends of the space from which to sample.
+        The values can also be directly specified as `skopt`
+        objects like `Categorical`.
+    loss : function or string
+        An appropriate loss function or string recognizable by
+        sklearn.cross_validation.cross_val_score. In sklearn, scores
+        are positive and losses are negative because they maximize,
+        but here we are minimizing so we always want smaller to mean
+        better.
+    skopt_method : skopt function
+        Can be `gp_minimize`, `forest_minimize`, or `gbrt_minimize`.
+    n_calls : int
+        Number of evaluations to do.
+    Returns
+    -------
+    list of dict
+        Each has keys 'loss' and 'params', where 'params' stores the
+        values from `param_grid` for that run. The primary organizing
+        value is 'loss'.
+    """
+    param_keys, param_vecs = zip(*param_grid.items())
+    param_keys = list(param_keys)
+    param_vecs = list(param_vecs)
+
+    def skopt_scorer(param_vec):
+        params = dict(zip(param_keys, param_vec))
+        err = cross_validated_scorer(
+            X_train, y_train, model_class, params, loss)
+        return err
+    outcome = skopt_method(skopt_scorer, list(param_vecs), n_calls=n_calls)
+    results = []
+    for err, param_vec in zip(outcome.func_vals, outcome.x_iters):
+        params = dict(zip(param_keys, param_vec))
+        results.append({'loss': err, 'params': params})
+    return results
